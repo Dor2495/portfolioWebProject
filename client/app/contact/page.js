@@ -5,8 +5,8 @@ import { motion } from 'framer-motion'
 import { FaEnvelope, FaPhone, FaGithub, FaLinkedin, FaMapMarkerAlt } from 'react-icons/fa'
 import axios from 'axios'
 
-// API URL for the contact endpoint
-const API_URL = 'http://localhost:3001/api/contact';
+// API URL from environment variable
+const API_URL = `${process.env.API_URL || 'http://localhost:3001'}/api/contact`;
 
 export default function Contact() {
   const [formData, setFormData] = useState({
