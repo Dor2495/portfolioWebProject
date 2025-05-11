@@ -248,27 +248,50 @@ app.use('/api/contact', contactRoutes);
 
 // Handle root route for API-only mode
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Portfolio API Server is running',
-    endpoints: {
-      projects: '/api/projects',
-      contact: '/api/contact',
-      test: '/api/test'
-    }
-  });
+  const clientIndexPath = path.join(__dirname, 'public/client/index.html');
+  
+  // Check if client index file exists
+  if (fs.existsSync(clientIndexPath)) {
+    // Serve the client index file
+    res.sendFile(clientIndexPath);
+  } else {
+    // Fallback to API response
+    res.json({
+      message: 'Portfolio API Server is running',
+      endpoints: {
+        projects: '/api/projects',
+        contact: '/api/contact',
+        test: '/api/test'
+      }
+    });
+  }
 });
 
 // Serve static files from the Next.js client in production, if they exist
 if (process.env.NODE_ENV === 'production') {
-  const clientDir = path.join(__dirname, '../client/out');
+  const clientDir = path.join(__dirname, 'public/client');
   
-  // Check if client/out directory exists before trying to serve from it
+  // Check if client directory exists before trying to serve from it
   try {
     if (fs.existsSync(clientDir)) {
       console.log('Found client build directory, serving static files');
+      
+      // Serve the client static files - important to do this before the wildcard route
       app.use(express.static(clientDir));
       
+      // Serve the Next.js _next folder
+      app.use('/_next', express.static(path.join(clientDir, '_next')));
+      
+      // Wildcard route to serve client index.html for client-side routing
       app.get('*', (req, res) => {
+        // Skip API routes
+        if (req.path.startsWith('/api/')) {
+          return res.status(404).json({ 
+            error: 'API endpoint not found',
+            availableEndpoints: ['/api/projects', '/api/contact', '/api/test']
+          });
+        }
+        
         const indexPath = path.join(clientDir, 'index.html');
         if (fs.existsSync(indexPath)) {
           res.sendFile(indexPath);
