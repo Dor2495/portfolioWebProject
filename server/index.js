@@ -246,12 +246,72 @@ app.get('/api/test', (req, res) => {
 app.use('/api/projects', projectRoutes);
 app.use('/api/contact', contactRoutes);
 
-// Serve static files from the Next.js client in production
+// Handle root route for API-only mode
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Portfolio API Server is running',
+    endpoints: {
+      projects: '/api/projects',
+      contact: '/api/contact',
+      test: '/api/test'
+    }
+  });
+});
+
+// Serve static files from the Next.js client in production, if they exist
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/out')));
+  const clientDir = path.join(__dirname, '../client/out');
   
+  // Check if client/out directory exists before trying to serve from it
+  try {
+    if (fs.existsSync(clientDir)) {
+      console.log('Found client build directory, serving static files');
+      app.use(express.static(clientDir));
+      
+      app.get('*', (req, res) => {
+        const indexPath = path.join(clientDir, 'index.html');
+        if (fs.existsSync(indexPath)) {
+          res.sendFile(indexPath);
+        } else {
+          // Fallback to API response if index.html doesn't exist
+          res.status(404).json({ 
+            error: 'Page not found', 
+            message: 'This is an API server. Frontend files are not available.',
+            endpoints: ['/api/projects', '/api/contact', '/api/test']
+          });
+        }
+      });
+    } else {
+      console.log('Client build directory not found, running in API-only mode');
+      
+      // Handle all unmatched routes with API response
+      app.get('*', (req, res) => {
+        res.status(404).json({ 
+          error: 'Page not found', 
+          message: 'This is an API server. Frontend files are not available.',
+          endpoints: ['/api/projects', '/api/contact', '/api/test']
+        });
+      });
+    }
+  } catch (err) {
+    console.error('Error checking for client directory:', err);
+    
+    // Handle all unmatched routes with API response
+    app.get('*', (req, res) => {
+      res.status(404).json({ 
+        error: 'Page not found', 
+        message: 'This is an API server. Frontend files are not available.',
+        endpoints: ['/api/projects', '/api/contact', '/api/test']
+      });
+    });
+  }
+} else {
+  // Development mode - 404 handler for unmatched routes
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/out/index.html'));
+    res.status(404).json({ 
+      error: 'Route not found',
+      endpoints: ['/api/projects', '/api/contact', '/api/test']
+    });
   });
 }
 
